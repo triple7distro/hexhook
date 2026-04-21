@@ -82,19 +82,19 @@ task.spawn(function()
     Library:Notify("setting up tabs")
     
     local Tabs = {
-        ['UI Settings'] = Window:AddTab('UI Settings')
+        ['ui settings'] = Window:AddTab('ui settings')
     }
     
     task.wait(0.2)
     
-    local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+    local MenuGroup = Tabs['ui settings']:AddLeftGroupbox('menu')
     
     task.wait(0.2)
     
     Library:Notify("adding controls")
     
-    MenuGroup:AddButton('Unload UI', function() Library:Unload() end)
-    MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'Insert', NoUI = true, Text = 'Menu keybind' })
+    MenuGroup:AddButton('unload ui', function() Library:Unload() end)
+    MenuGroup:AddLabel('menu bind'):AddKeyPicker('MenuKeybind', { Default = 'Insert', NoUI = true, Text = 'menu keybind' })
     
     Library.ToggleKeybind = Options.MenuKeybind
     
@@ -108,8 +108,8 @@ task.spawn(function()
     SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
     ThemeManager:SetFolder('hexhook')
     SaveManager:SetFolder('hexhook')
-    SaveManager:BuildConfigSection(Tabs['UI Settings'])
-    ThemeManager:ApplyToTab(Tabs['UI Settings'])
+    SaveManager:BuildConfigSection(Tabs['ui settings'])
+    ThemeManager:ApplyToTab(Tabs['ui settings'])
     
     task.wait(0.2)
     

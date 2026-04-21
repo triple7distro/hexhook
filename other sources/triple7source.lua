@@ -1,0 +1,1319 @@
+print("test print")
+local repo = 'https://raw.githubusercontent.com/triple7distro/triple7/main/'
+
+local Library = loadstring(game:HttpGet(repo .. 'libraries/UI_library.lua'))()
+local ThemeManager = loadstring(game:HttpGet(repo .. 'libraries/UI_theme.lua'))()
+local SaveManager = loadstring(game:HttpGet(repo .. 'libraries/UI_save.lua'))()
+local EspLibraryCode = game:HttpGet(repo .. 'libraries/ESP_library.lua')
+local EspLibrary = loadstring(EspLibraryCode)()
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Camera = Workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+local CFrameNew = CFrame.new
+local Vector2New = Vector2.new
+local Vector3New = Vector3.new
+local IsDescendantOf = game.IsDescendantOf
+local FindFirstChild = game.FindFirstChild
+local FindFirstChildOfClass = game.FindFirstChildOfClass
+local Raycast = Workspace.Raycast
+local WorldToViewportPoint = Camera.WorldToViewportPoint
+local MathFloor = math.floor
+
+local Window = Library:CreateWindow({
+    Title = 'triple7 project delta / 1.3.0 / 20.04.2026',
+    Center = true,
+    AutoShow = true,
+    TabPadding = 8,
+    MenuFadeTime = 0
+})
+
+local Tabs = {
+    Combat = Window:AddTab('combat'),
+    Visuals = Window:AddTab('visuals'),
+    Misc = Window:AddTab('misc'),
+    Settings = Window:AddTab('settings'),
+}
+
+-- weapon mods
+local WeaponModsGroup = Tabs.Combat:AddRightGroupbox('weapon mods')
+
+local originalValues = {}
+local ammoTypesFolder = ReplicatedStorage:FindFirstChild("AmmoTypes")
+
+local function applyWeaponMods()
+    if not ammoTypesFolder then return end
+
+    for _, ammoType in ipairs(ammoTypesFolder:GetChildren()) do
+        if not ammoType:IsA("Instance") then continue end
+
+        local name = ammoType:GetFullName()
+        if not originalValues[name] then
+            originalValues[name] = {
+                RecoilStrength = ammoType:GetAttribute("RecoilStrength"),
+                ProjectileDrop = ammoType:GetAttribute("ProjectileDrop"),
+                AccuracyDeviation = ammoType:GetAttribute("AccuracyDeviation"),
+            }
+        end
+
+        if Toggles.NoRecoil and Toggles.NoRecoil.Value then
+            ammoType:SetAttribute("RecoilStrength", 0)
+        else
+            local orig = originalValues[name].RecoilStrength
+            if orig ~= nil then
+                ammoType:SetAttribute("RecoilStrength", orig)
+            end
+        end
+
+        if Toggles.NoSpread and Toggles.NoSpread.Value then
+            ammoType:SetAttribute("AccuracyDeviation", 0)
+        else
+            local origAcc = originalValues[name].AccuracyDeviation
+            if origAcc ~= nil then
+                ammoType:SetAttribute("AccuracyDeviation", origAcc)
+            end
+        end
+    end
+end
+
+WeaponModsGroup:AddToggle('NoRecoil', {
+    Text = 'no recoil',
+    Default = false,
+    Tooltip = 'sets RecoilStrength to 0',
+    Callback = function(Value)
+        applyWeaponMods()
+    end
+})
+
+WeaponModsGroup:AddToggle('NoSpread', {
+    Text = 'no spread',
+    Default = false,
+    Tooltip = 'sets AccuracyDeviation to 0',
+    Callback = function(Value)
+        applyWeaponMods()
+    end
+})
+
+if ammoTypesFolder then
+    ammoTypesFolder.ChildAdded:Connect(function(child)
+        task.wait()
+        applyWeaponMods()
+    end)
+end
+
+-- silent aim v3 - based on petalsource but fixed to not bend player (using __namecall instead of CreateBullet hook)
+local SilentAimGroup = Tabs.Combat:AddLeftGroupbox('silent aim')
+
+local SilentAim = {
+    enabled = false,
+    keybind = nil,
+    prediction = true,
+    hitpart = "Head",
+    fov_enabled = true,
+    fov_radius = 150,
+    fov_show = false,
+    wallcheck = false,
+    target_ai = true
+}
+
+-- UI
+SilentAimGroup:AddToggle('SilentAimEnabled', {
+    Text = 'silent aim',
+    Default = false,
+    Tooltip = 'redirects bullets to target (hold keybind)',
+    Callback = function(v)
+        SilentAim.enabled = v
+    end
+}):AddKeyPicker('SilentAimKey', {
+    Text = 'silent aim key',
+    Default = 'None',
+    Mode = 'Hold',
+    Callback = function(key)
+        SilentAim.keybind = key
+    end
+})
+
+SilentAimGroup:AddToggle('SilentAimTargetAI', {
+    Text = 'target ai',
+    Default = true,
+    Tooltip = 'include ai enemies as targets',
+    Callback = function(v)
+        SilentAim.target_ai = v
+    end
+})
+
+SilentAimGroup:AddToggle('SilentAimPrediction', {
+    Text = 'prediction',
+    Default = true,
+    Tooltip = 'predict target movement',
+    Callback = function(v)
+        SilentAim.prediction = v
+    end
+})
+
+SilentAimGroup:AddToggle('SilentAimWallCheck', {
+    Text = 'wall check',
+    Default = false,
+    Tooltip = 'only target visible enemies',
+    Callback = function(v)
+        SilentAim.wallcheck = v
+    end
+})
+
+SilentAimGroup:AddDropdown('SilentAimHitPart', {
+    Values = {'Head','UpperTorso','LowerTorso','HumanoidRootPart'},
+    Default = 1,
+    Multi = false,
+    Text = 'hit part',
+    Callback = function(v)
+        SilentAim.hitpart = v
+    end
+})
+
+SilentAimGroup:AddSlider('SilentAimFOV', {
+    Text = 'fov radius',
+    Default = 150,
+    Min = 50,
+    Max = 1000,
+    Rounding = 0,
+    Callback = function(v)
+        SilentAim.fov_radius = v
+    end
+})
+
+SilentAimGroup:AddToggle('SilentAimShowFOV', {
+    Text = 'show fov',
+    Default = false,
+    Tooltip = 'draw fov circle',
+    Callback = function(v)
+        SilentAim.fov_show = v
+    end
+})
+
+-- Utility functions
+local function Alive(plr)
+    local c = plr.Character
+    return c and c:FindFirstChild("Humanoid") and c.Humanoid.Health > 0
+end
+
+local function Visible(origin, target, ...)
+    local ignore = {Camera, ...}
+    if Alive(LocalPlayer) then
+        ignore[#ignore + 1] = LocalPlayer.Character
+    end
+    local hit = workspace:FindPartOnRayWithIgnoreList(Ray.new(origin, target.Position - origin), ignore)
+    return hit and hit:IsDescendantOf(target.Parent)
+end
+
+local function GetAi()
+    local t = {}
+    for _,z in pairs(AiZones:GetChildren()) do
+        for _,c in pairs(z:GetChildren()) do
+            if c:IsA("Model") then
+                t[#t + 1] = c
+            end
+        end
+    end
+    return t
+end
+
+local function GetTarget(origin)
+    if not SilentAim.enabled then return nil end
+    if Options.SilentAimKey and not Options.SilentAimKey:GetState() then return nil end
+    
+    local closest, dist = nil, SilentAim.fov_enabled and SilentAim.fov_radius or math.huge
+    local screenCenter = Vector2.new(Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2)
+    
+    -- Check AI
+    if SilentAim.target_ai then
+        for _,char in pairs(GetAi()) do
+            local part = char:FindFirstChild(SilentAim.hitpart)
+            if part then
+                local isVisible = not SilentAim.wallcheck or Visible(origin, part)
+                if isVisible then
+                    local pos, onscreen = Camera:WorldToViewportPoint(part.Position)
+                    if onscreen then
+                        local d = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+                        if not SilentAim.fov_enabled or d < dist then
+                            dist = d
+                            closest = part
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Check Players
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and Alive(plr) then
+            local part = plr.Character:FindFirstChild(SilentAim.hitpart)
+            if part then
+                local isVisible = not SilentAim.wallcheck or Visible(origin, part)
+                if isVisible then
+                    local pos, onscreen = Camera:WorldToViewportPoint(part.Position)
+                    if onscreen then
+                        local d = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
+                        if not SilentAim.fov_enabled or d < dist then
+                            dist = d
+                            closest = part
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    return closest
+end
+
+-- Ballistic prediction (from petalsource)
+local function Solve(A,B,C)
+    local d = B*B - 4*A*C
+    if d < 0 then return end
+    local s = math.sqrt(d)
+    return (-B - s)/(2*A), (-B + s)/(2*A)
+end
+
+local function Flight(dir, grav, speed)
+    local r1,r2 = Solve(grav:Dot(grav)/4, grav:Dot(dir)-speed^2, dir:Dot(dir))
+    if r1 and r2 then
+        local t = math.min(r1,r2)
+        if t > 0 then return math.sqrt(t) end
+    end
+    return 0
+end
+
+local function Predict(part, origin, speed, drop)
+    local g = Vector3.new(0, drop * 2, 0)
+    local t = Flight(part.Position - origin, g, speed)
+    return part.Position + part.Velocity * t
+end
+
+-- Hook using __namecall (doesn't bend player like CreateBullet hook)
+local __namecall
+__namecall = hookmetamethod(game, "__namecall", function(self, ...)
+    local args = {...}
+    local method = getnamecallmethod()
+    
+    if method == "InvokeServer" and self == FireProjectile then
+        local target = GetTarget(Camera.CFrame.Position)
+        if target and SilentAim.enabled then
+            local ammo = args[6] -- ammo type is 6th arg based on CreateBullet signature
+            if ammo then
+                local ammoObj = ReplicatedStorage.AmmoTypes:FindFirstChild(ammo)
+                if ammoObj then
+                    local speed = ammoObj:GetAttribute("MuzzleVelocity") or 1000
+                    local drop = ammoObj:GetAttribute("ProjectileDrop") or 0
+                    
+                    -- Remove drag for straight shots
+                    ammoObj:SetAttribute("Drag", 0)
+                    
+                    -- Calculate predicted position
+                    local origin = Camera.CFrame.Position
+                    local pos = SilentAim.prediction and Predict(target, origin, speed, drop) or target.Position
+                    
+                    -- Modify the aim CFrame in args (5th arg is aim table)
+                    if args[5] and typeof(args[5]) == "table" and args[5].CFrame then
+                        args[5] = {CFrame = CFrame.new(origin, pos)}
+                        return __namecall(self, unpack(args))
+                    end
+                end
+            end
+        end
+    end
+    
+    return __namecall(self, ...)
+end)
+
+-- FOV Circle
+local Circle = Drawing.new("Circle")
+Circle.NumSides = 100
+Circle.Thickness = 1
+Circle.Color = Color3.fromRGB(255, 255, 255)
+Circle.Filled = false
+
+RunService.RenderStepped:Connect(function()
+    Circle.Visible = SilentAim.fov_show and SilentAim.enabled
+    if Circle.Visible then
+        Circle.Position = UIS:GetMouseLocation()
+        Circle.Radius = SilentAim.fov_radius
+    end
+end)
+
+-- visuals
+local ESPSettings = EspLibrary.Settings
+
+local ESPTabbox = Tabs.Visuals:AddLeftTabbox('esp')
+
+local ESPTab1 = ESPTabbox:AddTab('main')
+local ESPTab2 = ESPTabbox:AddTab('features')
+
+ESPTab1:AddToggle('ESPEnabled', {
+    Text = 'esp masterswitch',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Enabled = Value
+        if Value then
+            EspLibrary.Load()
+        else
+            EspLibrary.Unload()
+        end
+    end
+})
+
+ESPTab1:AddSlider('ESPMaxDistance', {
+    Text = 'max distance',
+    Default = 10000,
+    Min = 100,
+    Max = 50000,
+    Rounding = 0,
+    Compact = true,
+    Callback = function(Value)
+        ESPSettings.MaxDistance = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPBox', {
+    Text = 'box',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Box = Value
+    end
+}):AddColorPicker('ESPBoxColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'box color',
+    Callback = function(Value)
+        ESPSettings.BoxColor = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPBoxFill', {
+    Text = 'box fill',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.BoxFill = Value
+    end
+}):AddColorPicker('ESPBoxFillColor', {
+    Default = Color3.new(1, 0, 0),
+    Title = 'fill color',
+    Callback = function(Value)
+        ESPSettings.BoxFillColor = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPBoxOutline', {
+    Text = 'box outline',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.BoxOutline = Value
+    end
+}):AddColorPicker('ESPBoxOutlineColor', {
+    Default = Color3.new(),
+    Title = 'outline color',
+    Callback = function(Value)
+        ESPSettings.BoxOutlineColor = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPName', {
+    Text = 'name',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Name = Value
+    end
+}):AddColorPicker('ESPNameColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'name color',
+    Callback = function(Value)
+        ESPSettings.NameColor = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPHealth', {
+    Text = 'health',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Health = Value
+    end
+}):AddColorPicker('ESPHealthColor', {
+    Default = Color3.new(0, 1, 0),
+    Title = 'health color',
+    Callback = function(Value)
+        ESPSettings.HealthColor = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPDistance', {
+    Text = 'distance',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Distance = Value
+    end
+}):AddColorPicker('ESPDistanceColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'distance color',
+    Callback = function(Value)
+        ESPSettings.DistanceColor = Value
+    end
+})
+
+ESPTab2:AddToggle('ESPSkeleton', {
+    Text = 'skeleton',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Skeleton = Value
+    end
+}):AddColorPicker('ESPSkeletonColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'skeleton color',
+    Callback = function(Value)
+        ESPSettings.SkeletonColor = Value
+    end
+})
+
+-- chams (left middle)
+local ChamsGroup = Tabs.Visuals:AddLeftGroupbox('chams')
+
+ChamsGroup:AddToggle('ESPChams', {
+    Text = 'chams',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.Chams = Value
+    end
+})
+
+ChamsGroup:AddToggle('ESPChamsFill', {
+    Text = 'chams fill',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.ChamsFill = Value
+    end
+}):AddColorPicker('ESPChamsFillColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'fill color',
+    Callback = function(Value)
+        ESPSettings.ChamsFillColor = Value
+    end
+})
+
+ChamsGroup:AddToggle('ESPChamsOutline', {
+    Text = 'chams outline',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.ChamsOutline = Value
+    end
+}):AddColorPicker('ESPChamsOutlineColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'outline color',
+    Callback = function(Value)
+        ESPSettings.ChamsOutlineColor = Value
+    end
+})
+
+ChamsGroup:AddToggle('ESPChamsVisibleOnly', {
+    Text = 'chams visible only',
+    Default = false,
+    Callback = function(Value)
+        ESPSettings.ChamsVisibleOnly = Value
+    end
+})
+
+-- camera (left bottom)
+local CameraGroup = Tabs.Visuals:AddLeftGroupbox('camera')
+
+local FOVEnabled = false
+local NormalFOV = 90
+local ZoomFOV = 30
+local FOVConnection = nil
+
+local function getTargetFOV()
+    if not Options.CameraZoomKeybind then
+        return NormalFOV
+    end
+    local isZoomed = Options.CameraZoomKeybind:GetState()
+    return isZoomed and ZoomFOV or NormalFOV
+end
+
+local function forceFOV()
+    local cam = Workspace.CurrentCamera
+    if cam and FOVEnabled then
+        local target = getTargetFOV()
+        if cam.FieldOfView ~= target then
+            cam.FieldOfView = target
+        end
+    end
+end
+
+local function startForcing()
+    if FOVConnection then return end
+    FOVConnection = RunService.RenderStepped:Connect(forceFOV)
+end
+
+local function stopForcing()
+    if FOVConnection then
+        FOVConnection:Disconnect()
+        FOVConnection = nil
+    end
+    local cam = Workspace.CurrentCamera
+    if cam then
+        cam.FieldOfView = 90
+    end
+end
+
+CameraGroup:AddToggle('EnableCameraFOV', {
+    Text = 'toggle fov',
+    Default = false,
+    Callback = function(Value)
+        FOVEnabled = Value
+        if Value then
+            startForcing()
+        else
+            stopForcing()
+        end
+    end
+})
+
+CameraGroup:AddSlider('CameraFOV', {
+    Text = 'fov',
+    Default = 90,
+    Min = 1,
+    Max = 120,
+    Rounding = 0,
+    Suffix = '°',
+    Callback = function(Value)
+        NormalFOV = Value
+    end
+})
+
+CameraGroup:AddSlider('CameraZoomFOV', {
+    Text = 'zoom fov',
+    Default = 30,
+    Min = 1,
+    Max = 120,
+    Rounding = 0,
+    Suffix = '°',
+    Callback = function(Value)
+        ZoomFOV = Value
+    end
+})
+
+CameraGroup:AddLabel('zoom bind'):AddKeyPicker('CameraZoomKeybind', {
+    Default = 'C',
+    Mode = 'Hold',
+    Text = 'camera zoom (hold)',
+    NoUI = false
+})
+
+CameraGroup:AddToggle('NoScreenEffects', {
+    Text = 'no screen effects',
+    Default = false,
+    Callback = function(Value)
+        NoScreenEffects = Value
+    end
+})
+
+-- third person
+local ThirdPerson = {
+    enabled = false,
+    distance = 10
+}
+
+local function updateThirdPerson()
+    if not ThirdPerson.enabled then return end
+    local isActive = Options.ThirdPersonKeybind and Options.ThirdPersonKeybind:GetState()
+    if isActive then
+        LocalPlayer.CameraMode = Enum.CameraMode.Classic
+        LocalPlayer.CameraMaxZoomDistance = ThirdPerson.distance
+        LocalPlayer.CameraMinZoomDistance = ThirdPerson.distance
+    else
+        LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+    end
+end
+
+CameraGroup:AddToggle('ThirdPerson', {
+    Text = 'third person',
+    Default = false,
+    Callback = function(Value)
+        ThirdPerson.enabled = Value
+        if Value then
+            RunService.RenderStepped:Connect(updateThirdPerson)
+        else
+            LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
+        end
+    end
+})
+
+CameraGroup:AddSlider('ThirdPersonDistance', {
+    Text = 'distance',
+    Default = 10,
+    Min = 1,
+    Max = 50,
+    Rounding = 1,
+    Compact = true,
+    Callback = function(Value)
+        ThirdPerson.distance = Value
+    end
+})
+
+CameraGroup:AddLabel('third person bind'):AddKeyPicker('ThirdPersonKeybind', {
+    Default = 'V',
+    Mode = 'Hold',
+    Text = 'third person bind',
+    NoUI = false
+})
+
+-- world effects
+local WorldGroup = Tabs.Visuals:AddRightGroupbox('world')
+
+local Lighting = game:GetService("Lighting")
+local OldAmbient1 = Lighting.Ambient
+local OldAmbient2 = Lighting.OutdoorAmbient
+local OldTime = MathFloor(Lighting.ClockTime)
+
+local WorldEffects = {
+    time_enabled = false,
+    time = OldTime,
+    ambient_enabled = false,
+    ambient_color1 = Color3.new(1, 1, 1),
+    ambient_color2 = Color3.fromRGB(150, 150, 150),
+    no_fog = false,
+    no_grass = false,
+    no_shadows = false
+}
+
+WorldGroup:AddToggle('TimeChanger', {
+    Text = 'time changer',
+    Default = false,
+    Callback = function(Value)
+        WorldEffects.time_enabled = Value
+    end
+})
+
+WorldGroup:AddSlider('TimeValue', {
+    Text = 'time',
+    Default = OldTime,
+    Min = 0,
+    Max = 24,
+    Rounding = 1,
+    Callback = function(Value)
+        WorldEffects.time = Value
+    end
+})
+
+WorldGroup:AddToggle('Ambient', {
+    Text = 'ambient',
+    Default = false,
+    Callback = function(Value)
+        WorldEffects.ambient_enabled = Value
+        if not Value then
+            Lighting.Ambient = OldAmbient1
+            Lighting.OutdoorAmbient = OldAmbient2
+        end
+    end
+}):AddColorPicker('AmbientColor1', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'color 1',
+    Callback = function(Value)
+        WorldEffects.ambient_color1 = Value
+    end
+}):AddColorPicker('AmbientColor2', {
+    Default = Color3.fromRGB(150, 150, 150),
+    Title = 'color 2',
+    Callback = function(Value)
+        WorldEffects.ambient_color2 = Value
+    end
+})
+
+WorldGroup:AddToggle('NoFog', {
+    Text = 'no fog',
+    Default = false,
+    Callback = function(Value)
+        WorldEffects.no_fog = Value
+        if Value then
+            Lighting.FogStart = math.huge
+            Lighting.FogEnd = math.huge
+        else
+            Lighting.FogStart = 0
+            Lighting.FogEnd = 1000
+        end
+    end
+})
+
+WorldGroup:AddToggle('NoGrass', {
+    Text = 'no grass',
+    Default = false,
+    Callback = function(Value)
+        WorldEffects.no_grass = Value
+        local terrain = FindFirstChildOfClass(Workspace, "Terrain")
+        if terrain then
+            terrain.Decoration = not Value
+        end
+    end
+})
+
+WorldGroup:AddToggle('NoShadows', {
+    Text = 'no shadows',
+    Default = false,
+    Callback = function(Value)
+        WorldEffects.no_shadows = Value
+        Lighting.GlobalShadows = not Value
+    end
+})
+
+RunService.RenderStepped:Connect(function()
+    if WorldEffects.time_enabled then
+        Lighting.ClockTime = WorldEffects.time
+    end
+    if WorldEffects.ambient_enabled then
+        Lighting.Ambient = WorldEffects.ambient_color1
+        Lighting.OutdoorAmbient = WorldEffects.ambient_color2
+    end
+    if WorldEffects.no_shadows then
+        Lighting.GlobalShadows = false
+    end
+    if WorldEffects.no_fog then
+        Lighting.FogStart = math.huge
+        Lighting.FogEnd = math.huge
+    end
+end)
+
+-- viewmodel
+local ViewmodelGroup = Tabs.Visuals:AddRightGroupbox('viewmodel')
+
+local Viewmodel = {
+    x = 0,
+    y = 0,
+    z = 0,
+    gun_chams = false,
+    gun_color = Color3.new(1, 1, 1),
+    gun_material = "SmoothPlastic",
+    arm_chams = false,
+    arm_color = Color3.new(1, 1, 1),
+    arm_material = "SmoothPlastic"
+}
+
+ViewmodelGroup:AddLabel('offset')
+
+ViewmodelGroup:AddSlider('ViewmodelX', {
+    Text = 'X',
+    Default = 0,
+    Min = -5,
+    Max = 5,
+    Rounding = 2,
+    Compact = true,
+    Callback = function(Value)
+        Viewmodel.x = Value
+    end
+})
+
+ViewmodelGroup:AddSlider('ViewmodelY', {
+    Text = 'Y',
+    Default = 0,
+    Min = -5,
+    Max = 5,
+    Rounding = 2,
+    Compact = true,
+    Callback = function(Value)
+        Viewmodel.y = Value
+    end
+})
+
+ViewmodelGroup:AddSlider('ViewmodelZ', {
+    Text = 'Z',
+    Default = 0,
+    Min = -5,
+    Max = 5,
+    Rounding = 2,
+    Compact = true,
+    Callback = function(Value)
+        Viewmodel.z = Value
+    end
+})
+
+ViewmodelGroup:AddToggle('GunChams', {
+    Text = 'gun chams',
+    Default = false,
+    Callback = function(Value)
+        Viewmodel.gun_chams = Value
+    end
+}):AddColorPicker('GunChamsColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'gun color',
+    Callback = function(Value)
+        Viewmodel.gun_color = Value
+    end
+})
+
+ViewmodelGroup:AddDropdown('GunChamsMaterial', {
+    Text = 'gun material',
+    Default = 'SmoothPlastic',
+    Values = { 'ForceField', 'Neon', 'SmoothPlastic', 'Glass' },
+    Callback = function(Value)
+        Viewmodel.gun_material = Value
+    end
+})
+
+ViewmodelGroup:AddToggle('ArmChams', {
+    Text = 'arm chams',
+    Default = false,
+    Callback = function(Value)
+        Viewmodel.arm_chams = Value
+    end
+}):AddColorPicker('ArmChamsColor', {
+    Default = Color3.new(1, 1, 1),
+    Title = 'arm color',
+    Callback = function(Value)
+        Viewmodel.arm_color = Value
+    end
+})
+
+ViewmodelGroup:AddDropdown('ArmChamsMaterial', {
+    Text = 'arm material',
+    Default = 'SmoothPlastic',
+    Values = { 'ForceField', 'Neon', 'SmoothPlastic', 'Glass' },
+    Callback = function(Value)
+        Viewmodel.arm_material = Value
+    end
+})
+
+local function applyViewmodelOffset(vm)
+    if not vm then return end
+    local hrp = FindFirstChild(vm, "HumanoidRootPart")
+    if not hrp then return end
+    local vec = Vector3New(Viewmodel.x, Viewmodel.y, Viewmodel.z)
+    local lua = FindFirstChild(hrp, "LeftUpperArm")
+    local rua = FindFirstChild(hrp, "RightUpperArm")
+    local ir = FindFirstChild(hrp, "ItemRoot")
+    local m6 = FindFirstChild(hrp, "Motor6D")
+    if lua then lua.C0 = lua.C0 + vec end
+    if rua then rua.C0 = rua.C0 + vec end
+    if ir then ir.C0 = ir.C0 + vec end
+    if m6 then m6.C0 = m6.C0 + vec end
+end
+
+local function applyViewmodelChams(vm)
+    if not vm then return end
+    local itemView = FindFirstChild(vm, "Item")
+    if itemView and Viewmodel.gun_chams then
+        for _, v in pairs(itemView:GetDescendants()) do
+            if v.ClassName == "MeshPart" or v.ClassName == "Part" then
+                v.Material = Enum.Material[Viewmodel.gun_material]
+                v.Color = Viewmodel.gun_color
+            end
+            local surface = FindFirstChildOfClass(v, "SurfaceAppearance")
+            if surface then surface:Destroy() end
+        end
+    end
+    if Viewmodel.arm_chams then
+        for _, vmItem in pairs(vm:GetChildren()) do
+            if vmItem.ClassName == "MeshPart" then
+                if vmItem.Name:find("Hand") or vmItem.Name:find("Arm") then
+                    vmItem.Material = Enum.Material[Viewmodel.arm_material]
+                    vmItem.Color = Viewmodel.arm_color
+                end
+            end
+            if vmItem.ClassName == "Model" then
+                local ll = FindFirstChild(vmItem, "LL")
+                local lh = FindFirstChild(vmItem, "LH")
+                if ll or lh then
+                    for _, shirtItem in pairs(vmItem:GetChildren()) do
+                        local surface = FindFirstChildOfClass(shirtItem, "SurfaceAppearance")
+                        if surface then surface:Destroy() end
+                        shirtItem.Material = Enum.Material[Viewmodel.arm_material]
+                        shirtItem.Color = Viewmodel.arm_color
+                    end
+                end
+            end
+        end
+    end
+end
+
+Camera.ChildAdded:Connect(applyViewmodelOffset)
+Camera.DescendantAdded:Connect(applyViewmodelChams)
+
+RunService.RenderStepped:Connect(function()
+    if NoScreenEffects then
+        local playergui = LocalPlayer.PlayerGui
+        local noinsetgui = playergui and FindFirstChild(playergui, "NoInsetGui")
+        local mainframe = noinsetgui and FindFirstChild(noinsetgui, "MainFrame")
+        local screeneffects = mainframe and FindFirstChild(mainframe, "ScreenEffects")
+        if screeneffects then screeneffects.Visible = false end
+    end
+end)
+
+-- inventory viewer
+local InventoryGroup = Tabs.Visuals:AddRightGroupbox('inventory viewer')
+
+local InventoryViewer = {
+    enabled = false,
+    x = 200,
+    y = 200,
+    delay = 0.25,
+    objs = {}
+}
+
+local InvDrawObjects = {}
+
+local function InvDrawNew(type, props)
+    local obj = Drawing.new(type)
+    for i, v in pairs(props) do
+        obj[i] = v
+    end
+    InvDrawObjects[#InvDrawObjects + 1] = obj
+    return obj
+end
+
+local function InvDrawRemoveAll()
+    for i, v in pairs(InvDrawObjects) do
+        v:Remove()
+        table.remove(InvDrawObjects, i)
+    end
+end
+
+local function InvDrawChangeVis(value)
+    for _, v in pairs(InvDrawObjects) do
+        v.Visible = value
+    end
+end
+
+local function InventoryAdd(text, size, pos)
+    local textObj = InvDrawNew("Text", {
+        Text = text,
+        Size = size,
+        Font = Drawing.Fonts.Monospace,
+        Outline = true,
+        Center = false,
+        Position = pos + Vector2New(0, (size + 1) * #InventoryViewer.objs),
+        Transparency = 1,
+        Visible = true,
+        Color = Color3.new(1, 1, 1),
+        ZIndex = 1,
+    })
+    InventoryViewer.objs[#InventoryViewer.objs + 1] = textObj
+end
+
+local function InventoryRefresh()
+    for i, v in InventoryViewer.objs do
+        if v then v:Remove() end
+        InventoryViewer.objs[i] = nil
+    end
+end
+
+local function InventoryUpdate(name)
+    local rplayers = ReplicatedStorage.Players
+    local updateon
+    for _, rplayer in next, rplayers:GetChildren() do
+        if name == rplayer.Name then
+            updateon = rplayer
+        end
+    end
+    if not updateon then return InventoryRefresh() end
+    local invPos = Vector2New(InventoryViewer.x, InventoryViewer.y)
+    InventoryAdd("" .. updateon.Name .. " Inventory", 13, invPos)
+    InventoryAdd("[Inventory]", 13, invPos)
+    local inv = FindFirstChild(updateon, "Inventory")
+    if inv then
+        for _, item in next, inv:GetChildren() do
+            local amount = item:GetAttribute("Amount")
+            local itemText = amount and (item.Name .. " x" .. amount) or item.Name
+            InventoryAdd("    " .. itemText, 13, invPos)
+            -- check for nested inventory in clothing/armor
+            local nestedInv = FindFirstChild(item, "Inventory")
+            if nestedInv then
+                for _, nestedItem in next, nestedInv:GetChildren() do
+                    local nestedAmount = nestedItem:GetAttribute("Amount")
+                    local nestedText = nestedAmount and (nestedItem.Name .. " x" .. nestedAmount) or nestedItem.Name
+                    InventoryAdd("        " .. nestedText, 13, invPos)
+                end
+            end
+        end
+    end
+end
+
+InventoryGroup:AddToggle('InventoryViewer', {
+    Text = 'inventory viewer',
+    Default = false,
+    Callback = function(Value)
+        InventoryViewer.enabled = Value
+        if not Value then
+            InventoryRefresh()
+            InvDrawRemoveAll()
+        end
+    end
+})
+
+InventoryGroup:AddSlider('InventoryViewerX', {
+    Text = 'X',
+    Default = 200,
+    Min = 0,
+    Max = 700,
+    Rounding = 0,
+    Compact = true,
+    Callback = function(Value)
+        InventoryViewer.x = Value
+    end
+})
+
+InventoryGroup:AddSlider('InventoryViewerY', {
+    Text = 'Y',
+    Default = 200,
+    Min = 0,
+    Max = 700,
+    Rounding = 0,
+    Compact = true,
+    Callback = function(Value)
+        InventoryViewer.y = Value
+    end
+})
+
+InventoryGroup:AddSlider('InventoryViewerDelay', {
+    Text = 'delay',
+    Default = 0.25,
+    Min = 0,
+    Max = 1,
+    Rounding = 2,
+    Compact = true,
+    Callback = function(Value)
+        InventoryViewer.delay = Value
+    end
+})
+
+local InvFrameTimer = tick()
+RunService.RenderStepped:Connect(function()
+    if (tick() - InvFrameTimer) >= InventoryViewer.delay then
+        InvFrameTimer = tick()
+        InventoryRefresh()
+        if InventoryViewer.enabled and SilentAim.target_part then
+            local name = SilentAim.target_part.Parent.Name
+            InventoryUpdate(name)
+        end
+    end
+end)
+
+-- misc tab
+local FlyHackGroup = Tabs.Misc:AddLeftGroupbox('flyhack')
+
+local FlyHack = {
+    enabled = false,
+    speed = 10,
+    yspeed = 10
+}
+
+FlyHackGroup:AddToggle('FlyHackEnabled', {
+    Text = 'flyhack enabled',
+    Default = false,
+    Callback = function(Value)
+        FlyHack.enabled = Value
+    end
+}):AddKeyPicker('FlyHackBind', {
+    Default = 'None',
+    SyncToggleState = true,
+    Mode = 'Toggle',
+    Text = 'flyhack',
+    NoUI = false
+})
+
+FlyHackGroup:AddSlider('FlyHackSpeed', {
+    Text = 'speed',
+    Default = 10,
+    Min = 1,
+    Max = 50,
+    Rounding = 0,
+    Suffix = 'sps',
+    Compact = true,
+    Callback = function(Value)
+        FlyHack.speed = Value
+    end
+})
+
+FlyHackGroup:AddSlider('FlyHackYSpeed', {
+    Text = 'y speed',
+    Default = 10,
+    Min = 1,
+    Max = 50,
+    Rounding = 0,
+    Suffix = 'sps',
+    Compact = true,
+    Callback = function(Value)
+        FlyHack.yspeed = Value
+    end
+})
+
+local UserInputService = game:GetService("UserInputService")
+
+RunService.Heartbeat:Connect(function(delta)
+    local character = LocalPlayer.Character
+    local hrp = character and FindFirstChild(character, "HumanoidRootPart")
+    if FlyHack.enabled and hrp then
+        local camLook = Camera.CFrame.LookVector
+        camLook = Vector3New(camLook.X, 0, camLook.Z)
+        local direction = Vector3.zero
+        direction = UserInputService:IsKeyDown(Enum.KeyCode.W) and direction + camLook or direction
+        direction = UserInputService:IsKeyDown(Enum.KeyCode.S) and direction - camLook or direction
+        direction = UserInputService:IsKeyDown(Enum.KeyCode.D) and direction + Vector3New(-camLook.Z, 0, camLook.X) or direction
+        direction = UserInputService:IsKeyDown(Enum.KeyCode.A) and direction + Vector3New(camLook.Z, 0, -camLook.X) or direction
+        direction = UserInputService:IsKeyDown(Enum.KeyCode.Space) and direction + Vector3.yAxis or direction
+        direction = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and direction - Vector3.yAxis or direction
+        if direction ~= Vector3.zero then
+            direction = direction.Unit
+        end
+        hrp.CFrame = hrp.CFrame + Vector3New(1, 0, 1) * (direction * delta * FlyHack.speed) + Vector3.yAxis * (direction * delta * FlyHack.yspeed)
+        for _, part in character:GetDescendants() do
+            if part:IsA("BasePart") then part.AssemblyLinearVelocity = Vector3.zero end
+        end
+    end
+end)
+
+-- movement modifiers
+local MovementGroup = Tabs.Misc:AddLeftGroupbox('movement')
+
+local MovementMods = {
+    speed_mult = 1.0,
+    jump_mult = 1.0,
+    enabled = false,
+    last_jumped = false
+}
+
+MovementGroup:AddToggle('SpeedModEnabled', {
+    Text = 'speed modifier',
+    Default = false,
+    Callback = function(Value)
+        MovementMods.enabled = Value
+    end
+})
+
+MovementGroup:AddSlider('SpeedMultiplier', {
+    Text = 'speed multiplier',
+    Default = 1.0,
+    Min = 0.5,
+    Max = 2.0,
+    Rounding = 2,
+    Suffix = 'x',
+    Compact = true,
+    Callback = function(Value)
+        MovementMods.speed_mult = Value
+    end
+})
+
+MovementGroup:AddSlider('JumpMultiplier', {
+    Text = 'jump multiplier',
+    Default = 1.0,
+    Min = 0.5,
+    Max = 2.0,
+    Rounding = 2,
+    Suffix = 'x',
+    Compact = true,
+    Callback = function(Value)
+        MovementMods.jump_mult = Value
+    end
+})
+
+-- velocity-based speed modifier for Project Delta
+local UserInputService = game:GetService("UserInputService")
+local last_hrp_pos = nil
+
+RunService.Heartbeat:Connect(function(delta)
+    if not MovementMods.enabled then return end
+    
+    local character = LocalPlayer.Character
+    local hrp = character and FindFirstChild(character, "HumanoidRootPart")
+    local humanoid = character and FindFirstChildOfClass(character, "Humanoid")
+    if not (hrp and humanoid) then return end
+    
+    -- check if on ground
+    local is_on_ground = humanoid.FloorMaterial ~= Enum.Material.Air
+    
+    -- get input direction
+    local move_dir = Vector3.zero
+    if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+        move_dir = move_dir + (Camera.CFrame.LookVector * Vector3.new(1, 0, 1)).Unit
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+        move_dir = move_dir - (Camera.CFrame.LookVector * Vector3.new(1, 0, 1)).Unit
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+        move_dir = move_dir + (Camera.CFrame.RightVector * Vector3.new(1, 0, 1)).Unit
+    end
+    if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+        move_dir = move_dir - (Camera.CFrame.RightVector * Vector3.new(1, 0, 1)).Unit
+    end
+    
+    -- apply speed multiplier to velocity when moving
+    if move_dir ~= Vector3.zero and is_on_ground then
+        move_dir = move_dir.Unit
+        local target_vel = move_dir * 16 * MovementMods.speed_mult -- 16 is default walkspeed
+        hrp.AssemblyLinearVelocity = Vector3.new(target_vel.X, hrp.AssemblyLinearVelocity.Y, target_vel.Z)
+    end
+    
+    -- jump multiplier
+    if humanoid.Jump and MovementMods.jump_mult ~= 1.0 then
+        if is_on_ground and not MovementMods.last_jumped then
+            MovementMods.last_jumped = true
+            local jump_vel = humanoid.JumpPower * MovementMods.jump_mult
+            hrp.AssemblyLinearVelocity = Vector3.new(
+                hrp.AssemblyLinearVelocity.X,
+                jump_vel,
+                hrp.AssemblyLinearVelocity.Z
+            )
+        end
+    else
+        MovementMods.last_jumped = false
+    end
+end)
+
+-- settings
+local MenuGroup = Tabs.Settings:AddLeftGroupbox('menu')
+
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', {
+    Default = 'Insert',
+    NoUI = true,
+    Text = 'UI keybind'
+})
+Library.ToggleKeybind = Options.MenuKeybind
+
+SaveManager:SetLibrary(Library)
+SaveManager:SetFolder('triple7')
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+ThemeManager:SetLibrary(Library)
+ThemeManager:SetFolder('triple7')
+ThemeManager:ApplyToTab(Tabs.Settings)
+
+-- watermark
+Library:SetWatermark('triple7 project delta | fps: 60 | ping: 0')
+Library:SetWatermarkVisibility(true)
+if Library.Watermark then
+    Library.Watermark.AnchorPoint = Vector2.new(0.5, 0)
+    Library.Watermark.Position = UDim2.new(0.5, 0, 0, 10)
+end
+
+local FrameTimer = tick()
+local FrameCounter = 0
+local FPS = 60
+RunService.RenderStepped:Connect(function()
+    FrameCounter += 1
+    if (tick() - FrameTimer) >= 1 then
+        FPS = FrameCounter
+        FrameTimer = tick()
+        FrameCounter = 0
+    end
+    local Ping = MathFloor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+    Library:SetWatermark(string.format('triple7 project delta | fps: %d | ping: %d', FPS, Ping))
+    if Library.Watermark then
+        Library.Watermark.AnchorPoint = Vector2.new(0.5, 0)
+        Library.Watermark.Position = UDim2.new(0.5, 0, 0, 10)
+    end
+end)
+
+Library:Notify('triple7 loaded', 10)
+
+loadstring(game:HttpGet(repo .. 'fun/notification.lua'))()
