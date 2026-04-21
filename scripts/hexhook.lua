@@ -79,8 +79,7 @@ task.spawn(function()
         Center = true,
         AutoShow = false,
         TabPadding = 8,
-        MenuFadeTime = 0.2,
-        Font = repo .. 'fonts/robotocondensed.ttf'
+        MenuFadeTime = 0,
     })
     
     task.wait(0.2)
