@@ -110,6 +110,6 @@ SaveManager:SetFolder('hexhook')
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
 
-Window:Show()
+Library.Toggle()
 
 Library:Notify("hexhook loaded")
