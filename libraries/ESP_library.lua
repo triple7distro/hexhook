@@ -10,7 +10,6 @@ Esp.Settings = {
     Enabled = false,
     Box = false,
     BoxFill = false,
-    BoxOutline = false,
     Name = false,
     Health = false,
     Distance = false,
@@ -23,7 +22,6 @@ Esp.Settings = {
 
     BoxColor = Color3.new(1, 1, 1),
     BoxFillColor = Color3.new(1, 0, 0),
-    BoxOutlineColor = Color3.new(),
     NameColor = Color3.new(1, 1, 1),
     HealthColor = Color3.new(0, 1, 0),
     DistanceColor = Color3.new(1, 1, 1),
@@ -106,7 +104,6 @@ local function CreatePlayerEsp(player)
 
     local objects = {
         Box = NewDrawing("Square", { Thickness = 1, Filled = false, Visible = false }),
-        BoxOutline = NewDrawing("Square", { Thickness = 3, Filled = false, Visible = false }),
         BoxFill = NewDrawing("Square", { Thickness = 1, Filled = true, Visible = false }),
         Name = NewDrawing("Text", { Size = Esp.Settings.TextSize, Font = Esp.Settings.TextFont, Center = true, Outline = true, Visible = false }),
         Health = NewDrawing("Text", { Size = Esp.Settings.TextSize, Font = Esp.Settings.TextFont, Center = true, Outline = true, Visible = false }),
@@ -255,11 +252,6 @@ local function UpdatePlayerEsp(player, delta)
         objects.Box.Size = boxSize
         objects.Box.Color = settings.BoxColor
 
-        objects.BoxOutline.Visible = settings.BoxOutline
-        objects.BoxOutline.Position = boxPos
-        objects.BoxOutline.Size = boxSize
-        objects.BoxOutline.Color = settings.BoxOutlineColor
-
         objects.BoxFill.Visible = settings.BoxFill
         objects.BoxFill.Position = boxPos
         objects.BoxFill.Size = boxSize
@@ -267,7 +259,6 @@ local function UpdatePlayerEsp(player, delta)
         objects.BoxFill.Transparency = 0.5
     else
         objects.Box.Visible = false
-        objects.BoxOutline.Visible = false
         objects.BoxFill.Visible = false
     end
 

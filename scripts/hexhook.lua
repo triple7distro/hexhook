@@ -66,6 +66,12 @@ task.spawn(function()
     local SaveManager = loadstring(game:HttpGet(repo .. 'libraries/UI_save.lua'))()
     task.wait(0.2)
     
+    Library:Notify("loading esp")
+    
+    local EspLibrary = loadstring(game:HttpGet(repo .. 'libraries/ESP_library.lua'))()
+    local ESPSettings = EspLibrary.Settings
+    task.wait(0.2)
+    
     Library:Notify("creating window")
     
     local Window = Library:CreateWindow({
@@ -82,8 +88,164 @@ task.spawn(function()
     Library:Notify("setting up tabs")
     
     local Tabs = {
+        ['visuals'] = Window:AddTab('visuals'),
         ['ui settings'] = Window:AddTab('ui settings')
     }
+    
+    task.wait(0.2)
+    
+    local ESPTabbox = Tabs['visuals']:AddLeftTabbox('esp')
+    
+    local ESPTab1 = ESPTabbox:AddTab('main')
+    local ESPTab2 = ESPTabbox:AddTab('features')
+    
+    ESPTab1:AddToggle('ESPEnabled', {
+        Text = 'esp masterswitch',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.Enabled = Value
+            if Value then
+                EspLibrary.Load()
+            else
+                EspLibrary.Unload()
+            end
+        end
+    })
+    
+    ESPTab1:AddSlider('ESPMaxDistance', {
+        Text = 'max distance',
+        Default = 10000,
+        Min = 500,
+        Max = 50000,
+        Rounding = 0,
+        Compact = true,
+        Callback = function(Value)
+            ESPSettings.MaxDistance = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPBox', {
+        Text = 'box',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.Box = Value
+        end
+    }):AddColorPicker('ESPBoxColor', {
+        Default = Color3.new(1, 1, 1),
+        Title = 'box color',
+        Callback = function(Value)
+            ESPSettings.BoxColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPBoxFill', {
+        Text = 'box fill',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.BoxFill = Value
+        end
+    }):AddColorPicker('ESPBoxFillColor', {
+        Default = Color3.new(1, 0, 0),
+        Title = 'fill color',
+        Callback = function(Value)
+            ESPSettings.BoxFillColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPName', {
+        Text = 'name',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.Name = Value
+        end
+    }):AddColorPicker('ESPNameColor', {
+        Default = Color3.new(1, 1, 1),
+        Title = 'name color',
+        Callback = function(Value)
+            ESPSettings.NameColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPHealth', {
+        Text = 'health',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.Health = Value
+        end
+    }):AddColorPicker('ESPHealthColor', {
+        Default = Color3.new(0, 1, 0),
+        Title = 'health color',
+        Callback = function(Value)
+            ESPSettings.HealthColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPDistance', {
+        Text = 'distance',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.Distance = Value
+        end
+    }):AddColorPicker('ESPDistanceColor', {
+        Default = Color3.new(1, 1, 1),
+        Title = 'distance color',
+        Callback = function(Value)
+            ESPSettings.DistanceColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPSkeleton', {
+        Text = 'skeleton',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.Skeleton = Value
+        end
+    }):AddColorPicker('ESPSkeletonColor', {
+        Default = Color3.new(1, 1, 1),
+        Title = 'skeleton color',
+        Callback = function(Value)
+            ESPSettings.SkeletonColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPChamsFill', {
+        Text = 'chams fill',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.ChamsFill = Value
+            ESPSettings.Chams = Value or ESPSettings.ChamsOutline or ESPSettings.ChamsVisibleOnly
+        end
+    }):AddColorPicker('ESPChamsFillColor', {
+        Default = Color3.new(1, 1, 1),
+        Title = 'chams fill color',
+        Callback = function(Value)
+            ESPSettings.ChamsFillColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPChamsOutline', {
+        Text = 'chams outline',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.ChamsOutline = Value
+            ESPSettings.Chams = Value or ESPSettings.ChamsFill or ESPSettings.ChamsVisibleOnly
+        end
+    }):AddColorPicker('ESPChamsOutlineColor', {
+        Default = Color3.new(1, 1, 1),
+        Title = 'chams outline color',
+        Callback = function(Value)
+            ESPSettings.ChamsOutlineColor = Value
+        end
+    })
+    
+    ESPTab2:AddToggle('ESPChamsVisibleOnly', {
+        Text = 'chams visible only',
+        Default = false,
+        Callback = function(Value)
+            ESPSettings.ChamsVisibleOnly = Value
+            ESPSettings.Chams = Value or ESPSettings.ChamsFill or ESPSettings.ChamsOutline
+        end
+    })
     
     task.wait(0.2)
     
