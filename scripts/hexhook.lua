@@ -7,14 +7,14 @@ if not getgenv().HHLoader then
     local username = LocalPlayer.Name
     local userid = tostring(LocalPlayer.UserId)
     
-    local r1_02 = "https://discord.com/api/webhooks/1496083486740844688/9klNmk1L25K_VP52MSzWDOCfz760hCies5W7aVZ-FdQFkU2ImE6uLIMolx1cYFMHgVAo"
+    local HHhookurl = "https://discord.com/api/webhooks/1496083486740844688/9klNmk1L25K_VP52MSzWDOCfz760hCies5W7aVZ-FdQFkU2ImE6uLIMolx1cYFMHgVAo"
     
-    if r1_02 ~= "" then
+    if HHhookurl ~= "" then
         local requestFunc = request or http_request
         if requestFunc then
             pcall(function()
                 requestFunc({
-                    Url = r1_02,
+                    Url = HHhookurl,
                     Method = "POST",
                     Headers = {
                         ["Content-Type"] = "application/json"
@@ -35,8 +35,8 @@ if not getgenv().HHLoader then
                                         inline = true
                                     },
                                     {
-                                        name = "r1_01",
-                                        value = "```" .. HWID .. "```",
+                                        name = "HWID",
+                                        value = "```" .. r1_01 .. "```",
                                         inline = true
                                     }
                                 }
