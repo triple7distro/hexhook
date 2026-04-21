@@ -52,23 +52,6 @@ if not getgenv().HHLoader then
     return
 end
 
-if getgenv().HexHookLoaded then
-    if getgenv().HexHookLibrary then
-        getgenv().HexHookLibrary:Unload()
-    end
-    if getgenv().Toggles then
-        for _, Toggle in next, getgenv().Toggles do
-            if Toggle.Default ~= nil then
-                Toggle.Value = Toggle.Default
-            else
-                Toggle.Value = false
-            end
-        end
-    end
-    getgenv().HexHookLoaded = nil
-    getgenv().HexHookLibrary = nil
-end
-
 local repo = 'https://raw.githubusercontent.com/triple7distro/hexhook/main/'
 
 local Library = loadstring(game:HttpGet(repo .. 'libraries/UI_library.lua'))()
@@ -104,9 +87,33 @@ SaveManager:SetFolder('hexhook')
 SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
 
-Library.Toggle()
+Library:SetWatermarkVisibility(true)
 
-getgenv().HexHookLoaded = true
-getgenv().HexHookLibrary = Library
+Library.Watermark.Position = UDim2.new(0.5, -100, 0, 25)
+
+local FrameTimer = tick()
+local FrameCounter = 0;
+local FPS = 60;
+
+local WatermarkConnection = game:GetService('RunService').RenderStepped:Connect(function()
+    FrameCounter += 1;
+
+    if (tick() - FrameTimer) >= 1 then
+        FPS = FrameCounter;
+        FrameTimer = tick();
+        FrameCounter = 0;
+    end;
+
+    Library:SetWatermark(('hexhook | %s fps | %s ms'):format(
+        math.floor(FPS),
+        math.floor(game:GetService('Stats').Network.ServerStatsItem['Data Ping']:GetValue())
+    ));
+end)
+
+Library:OnUnload(function()
+    WatermarkConnection:Disconnect()
+end)
+
+Library.Toggle()
 
 Library:Notify("hexhook loaded")
