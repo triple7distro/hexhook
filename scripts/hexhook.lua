@@ -248,6 +248,188 @@ task.spawn(function()
     
     task.wait(0.2)
     
+    local InventoryGroup = Tabs['visuals']:AddRightGroupbox('inventory viewer')
+    
+    local InventoryViewer = {
+        enabled = false,
+        x = 200,
+        y = 200,
+        delay = 0.25,
+        target = nil,
+        objs = {}
+    }
+    
+    local InvDrawObjects = {}
+    
+    local function InvDrawNew(type, props)
+        local obj = Drawing.new(type)
+        for i, v in pairs(props) do
+            obj[i] = v
+        end
+        InvDrawObjects[#InvDrawObjects + 1] = obj
+        return obj
+    end
+    
+    local function InvDrawRemoveAll()
+        for i, v in pairs(InvDrawObjects) do
+            v:Remove()
+            table.remove(InvDrawObjects, i)
+        end
+    end
+    
+    local function InvDrawChangeVis(value)
+        for _, v in pairs(InvDrawObjects) do
+            v.Visible = value
+        end
+    end
+    
+    local function InventoryAdd(text, size, pos)
+        local textObj = InvDrawNew("Text", {
+            Text = text,
+            Size = size,
+            Font = Drawing.Fonts.Monospace,
+            Outline = true,
+            Center = false,
+            Position = pos + Vector2.new(0, (size + 1) * #InventoryViewer.objs),
+            Transparency = 1,
+            Visible = true,
+            Color = Color3.new(1, 1, 1),
+            ZIndex = 1,
+        })
+        InventoryViewer.objs[#InventoryViewer.objs + 1] = textObj
+    end
+    
+    local function InventoryRefresh()
+        for i, v in InventoryViewer.objs do
+            if v then v:Remove() end
+            InventoryViewer.objs[i] = nil
+        end
+    end
+    
+    local function InventoryUpdate(name)
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local rplayers = ReplicatedStorage.Players
+        local updateon
+        for _, rplayer in next, rplayers:GetChildren() do
+            if name == rplayer.Name then
+                updateon = rplayer
+            end
+        end
+        if not updateon then return InventoryRefresh() end
+        local invPos = Vector2.new(InventoryViewer.x, InventoryViewer.y)
+        InventoryAdd("" .. updateon.Name .. " Inventory", 13, invPos)
+        InventoryAdd("[Inventory]", 13, invPos)
+        local inv = updateon:FindFirstChild("Inventory")
+        if inv then
+            for _, item in next, inv:GetChildren() do
+                local amount = item:GetAttribute("Amount")
+                local itemText = amount and (item.Name .. " x" .. amount) or item.Name
+                InventoryAdd("    " .. itemText, 13, invPos)
+                local nestedInv = item:FindFirstChild("Inventory")
+                if nestedInv then
+                    for _, nestedItem in next, nestedInv:GetChildren() do
+                        local nestedAmount = nestedItem:GetAttribute("Amount")
+                        local nestedText = nestedAmount and (nestedItem.Name .. " x" .. nestedAmount) or nestedItem.Name
+                        InventoryAdd("        " .. nestedText, 13, invPos)
+                    end
+                end
+            end
+        end
+    end
+    
+    local playerList = {}
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        table.insert(playerList, player.Name)
+    end
+    
+    InventoryGroup:AddDropdown('InventoryViewerTarget', {
+        Text = 'target',
+        Values = playerList,
+        Default = 1,
+        Callback = function(Value)
+            InventoryViewer.target = Value
+        end
+    })
+    
+    InventoryGroup:AddToggle('InventoryViewer', {
+        Text = 'inventory viewer',
+        Default = false,
+        Callback = function(Value)
+            InventoryViewer.enabled = Value
+            if not Value then
+                InventoryRefresh()
+                InvDrawRemoveAll()
+            end
+        end
+    })
+    
+    InventoryGroup:AddSlider('InventoryViewerX', {
+        Text = 'X',
+        Default = 200,
+        Min = 0,
+        Max = 1920,
+        Rounding = 0,
+        Compact = true,
+        Callback = function(Value)
+            InventoryViewer.x = Value
+        end
+    })
+    
+    InventoryGroup:AddSlider('InventoryViewerY', {
+        Text = 'Y',
+        Default = 200,
+        Min = 0,
+        Max = 1080,
+        Rounding = 0,
+        Compact = true,
+        Callback = function(Value)
+            InventoryViewer.y = Value
+        end
+    })
+    
+    InventoryGroup:AddSlider('InventoryViewerDelay', {
+        Text = 'delay',
+        Default = 0.25,
+        Min = 0,
+        Max = 1,
+        Rounding = 2,
+        Compact = true,
+        Callback = function(Value)
+            InventoryViewer.delay = Value
+        end
+    })
+    
+    local InvFrameTimer = tick()
+    local InvConnection = game:GetService('RunService').RenderStepped:Connect(function()
+        if (tick() - InvFrameTimer) >= InventoryViewer.delay then
+            InvFrameTimer = tick()
+            InventoryRefresh()
+            if InventoryViewer.enabled and InventoryViewer.target then
+                InventoryUpdate(InventoryViewer.target)
+            end
+        end
+    end)
+    
+    Library:OnUnload(function()
+        InvConnection:Disconnect()
+        InvDrawRemoveAll()
+    end)
+    
+    game:GetService("Players").PlayerAdded:Connect(function(player)
+        table.insert(playerList, player.Name)
+        Options.InventoryViewerTarget:SetValues(playerList)
+    end)
+    
+    game:GetService("Players").PlayerRemoving:Connect(function(player)
+        local index = table.find(playerList, player.Name)
+        if index then
+            table.remove(playerList, index)
+            Options.InventoryViewerTarget:SetValues(playerList)
+        end
+    end)
+    
+    task.wait(0.2)
+    
     local MenuGroup = Tabs['ui settings']:AddLeftGroupbox('menu')
     
     task.wait(0.2)
