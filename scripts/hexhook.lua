@@ -52,7 +52,25 @@ if not getgenv().HHLoader then
     return
 end
 
+if getgenv().HexHookLoaded then
+    if getgenv().HexHookLibrary then
+        getgenv().HexHookLibrary:Unload()
+    end
+    if getgenv().Toggles then
+        for _, Toggle in next, getgenv().Toggles do
+            if Toggle.Default ~= nil then
+                Toggle.Value = Toggle.Default
+            else
+                Toggle.Value = false
+            end
+        end
+    end
+    getgenv().HexHookLoaded = nil
+    getgenv().HexHookLibrary = nil
+end
+
 local repo = 'https://raw.githubusercontent.com/triple7distro/hexhook/main/'
+
 local Library = loadstring(game:HttpGet(repo .. 'libraries/UI_library.lua'))()
 local ThemeManager = loadstring(game:HttpGet(repo .. 'libraries/UI_theme.lua'))()
 local SaveManager = loadstring(game:HttpGet(repo .. 'libraries/UI_save.lua'))()
@@ -67,37 +85,13 @@ local Window = Library:CreateWindow({
 })
 
 local Tabs = {
-    Main = Window:AddTab('Main'),
-    Settings = Window:AddTab('Settings'),
     ['UI Settings'] = Window:AddTab('UI Settings')
 }
 
-local MainGroupBox = Tabs.Main:AddLeftGroupbox('Features')
-
-local SettingsGroupBox = Tabs.Settings:AddLeftGroupbox('Settings')
-
 local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
 
-SettingsGroupBox:AddToggle('AutoLoad', {
-    Text = 'Auto Load Features',
-    Default = true,
-    Tooltip = 'Automatically load features on game start'
-})
-
-SettingsGroupBox:AddToggle('Notifications', {
-    Text = 'Show Notifications',
-    Default = true,
-    Tooltip = 'Show notifications for actions'
-})
-
-SettingsGroupBox:AddToggle('DebugMode', {
-    Text = 'Debug Mode',
-    Default = false,
-    Tooltip = 'Enable debug logging'
-})
-
 MenuGroup:AddButton('Unload UI', function() Library:Unload() end)
-MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'Insert', NoUI = true, Text = 'Menu keybind' })
 
 Library.ToggleKeybind = Options.MenuKeybind
 
@@ -111,5 +105,8 @@ SaveManager:BuildConfigSection(Tabs['UI Settings'])
 ThemeManager:ApplyToTab(Tabs['UI Settings'])
 
 Library.Toggle()
+
+getgenv().HexHookLoaded = true
+getgenv().HexHookLibrary = Library
 
 Library:Notify("hexhook loaded")
