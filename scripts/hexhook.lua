@@ -54,66 +54,105 @@ end
 
 local repo = 'https://raw.githubusercontent.com/triple7distro/hexhook/main/'
 
-local Library = loadstring(game:HttpGet(repo .. 'libraries/UI_library.lua'))()
-local ThemeManager = loadstring(game:HttpGet(repo .. 'libraries/UI_theme.lua'))()
-local SaveManager = loadstring(game:HttpGet(repo .. 'libraries/UI_save.lua'))()
+task.spawn(function()
+    local Library = loadstring(game:HttpGet(repo .. 'libraries/UI_library.lua'))()
+    task.wait(0.2)
+    
+    Library:Notify("loading components")
+    
+    local ThemeManager = loadstring(game:HttpGet(repo .. 'libraries/UI_theme.lua'))()
+    task.wait(0.2)
+    
+    local SaveManager = loadstring(game:HttpGet(repo .. 'libraries/UI_save.lua'))()
+    task.wait(0.2)
+    
+    Library:Notify("creating window")
+    
+    local Window = Library:CreateWindow({
+        Title = 'hexhook',
+        Center = true,
+        AutoShow = false,
+        TabPadding = 8,
+        MenuFadeTime = 0.2,
+        Font = 'rbxasset://fonts/robotocondensed.ttf'
+    })
+    
+    task.wait(0.2)
+    
+    Library:Notify("setting up tabs")
+    
+    local Tabs = {
+        ['UI Settings'] = Window:AddTab('UI Settings')
+    }
+    
+    task.wait(0.2)
+    
+    local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+    
+    task.wait(0.2)
+    
+    Library:Notify("adding controls")
+    
+    MenuGroup:AddButton('Unload UI', function() Library:Unload() end)
+    MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'Insert', NoUI = true, Text = 'Menu keybind' })
+    
+    Library.ToggleKeybind = Options.MenuKeybind
+    
+    task.wait(0.2)
+    
+    Library:Notify("configuring themes")
+    
+    ThemeManager:SetLibrary(Library)
+    SaveManager:SetLibrary(Library)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+    ThemeManager:SetFolder('hexhook')
+    SaveManager:SetFolder('hexhook')
+    SaveManager:BuildConfigSection(Tabs['UI Settings'])
+    ThemeManager:ApplyToTab(Tabs['UI Settings'])
+    
+    task.wait(0.2)
+    
+    Library:Notify("setting up watermark")
+    
+    Library:SetWatermarkVisibility(true)
+    Library.Watermark.Position = UDim2.new(0.5, -100, 0, 25)
+    
+    task.wait(0.2)
+    
+    Library:Notify("initializing performance monitor")
+    
+    local FrameTimer = tick()
+    local FrameCounter = 0;
+    local FPS = 60;
 
-local Window = Library:CreateWindow({
-    Title = 'hexhook',
-    Center = true,
-    AutoShow = false,
-    TabPadding = 8,
-    MenuFadeTime = 0.2,
-    Font = 'rbxasset://fonts/robotocondensed.ttf'
-})
+    local WatermarkConnection = game:GetService('RunService').RenderStepped:Connect(function()
+        FrameCounter += 1;
 
-local Tabs = {
-    ['UI Settings'] = Window:AddTab('UI Settings')
-}
+        if (tick() - FrameTimer) >= 1 then
+            FPS = FrameCounter;
+            FrameTimer = tick();
+            FrameCounter = 0;
+        end;
 
-local MenuGroup = Tabs['UI Settings']:AddLeftGroupbox('Menu')
+        Library:SetWatermark(('hexhook | %s fps | %s ms'):format(
+            math.floor(FPS),
+            math.floor(game:GetService('Stats').Network.ServerStatsItem['Data Ping']:GetValue())
+        ));
+    end)
 
-MenuGroup:AddButton('Unload UI', function() Library:Unload() end)
-MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'Insert', NoUI = true, Text = 'Menu keybind' })
-
-Library.ToggleKeybind = Options.MenuKeybind
-
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
-ThemeManager:SetFolder('hexhook')
-SaveManager:SetFolder('hexhook')
-SaveManager:BuildConfigSection(Tabs['UI Settings'])
-ThemeManager:ApplyToTab(Tabs['UI Settings'])
-
-Library:SetWatermarkVisibility(true)
-
-Library.Watermark.Position = UDim2.new(0.5, -100, 0, 25)
-
-local FrameTimer = tick()
-local FrameCounter = 0;
-local FPS = 60;
-
-local WatermarkConnection = game:GetService('RunService').RenderStepped:Connect(function()
-    FrameCounter += 1;
-
-    if (tick() - FrameTimer) >= 1 then
-        FPS = FrameCounter;
-        FrameTimer = tick();
-        FrameCounter = 0;
-    end;
-
-    Library:SetWatermark(('hexhook | %s fps | %s ms'):format(
-        math.floor(FPS),
-        math.floor(game:GetService('Stats').Network.ServerStatsItem['Data Ping']:GetValue())
-    ));
+    Library:OnUnload(function()
+        WatermarkConnection:Disconnect()
+    end)
+    
+    task.wait(0.2)
+    
+    Library:Notify("finalizing")
+    task.wait(0.3)
+    
+    Library.Toggle()
+    
+    task.wait(0.2)
+    
+    Library:Notify("hexhook loaded")
 end)
-
-Library:OnUnload(function()
-    WatermarkConnection:Disconnect()
-end)
-
-Library.Toggle()
-
-Library:Notify("hexhook loaded")
