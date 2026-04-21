@@ -80,7 +80,7 @@ task.spawn(function()
         AutoShow = false,
         TabPadding = 8,
         MenuFadeTime = 0.2,
-        Font = Enum.Font.Code
+        Font = repo .. 'fonts/robotocondensed.ttf'
     })
     
     task.wait(0.2)
@@ -251,55 +251,12 @@ task.spawn(function()
     
     local MenuGroup = Tabs['ui settings']:AddLeftGroupbox('menu')
     
-    local SettingsGroup = Tabs['ui settings']:AddLeftGroupbox('settings')
-    
     task.wait(0.2)
     
     Library:Notify("adding controls")
     
     MenuGroup:AddButton('unload ui', function() Library:Unload() end)
     MenuGroup:AddLabel('menu bind'):AddKeyPicker('MenuKeybind', { Default = 'Insert', NoUI = true, Text = 'menu keybind' })
-    
-    local Fonts = {
-        Enum.Font.Code,
-        Enum.Font.Gotham,
-        Enum.Font.GothamBold,
-        Enum.Font.GothamMedium,
-        Enum.Font.Arial,
-        Enum.Font.ArialBold,
-        Enum.Font.Legacy,
-        Enum.Font.Nunito,
-        Enum.Font.Oswald,
-        Enum.Font.JosefinSans
-    }
-    
-    local FontNames = {
-        "Code",
-        "Gotham",
-        "GothamBold",
-        "GothamMedium",
-        "Arial",
-        "ArialBold",
-        "Legacy",
-        "Nunito",
-        "Oswald",
-        "JosefinSans"
-    }
-    
-    local FontLabel = SettingsGroup:AddLabel('current font: ' .. FontNames[1])
-    
-    SettingsGroup:AddSlider('FontPicker', {
-        Text = 'font',
-        Default = 1,
-        Min = 1,
-        Max = #Fonts,
-        Rounding = 0,
-        Compact = true,
-        Callback = function(Value)
-            Library.Font = Fonts[Value]
-            FontLabel:SetTitle('current font: ' .. FontNames[Value])
-        end
-    })
     
     Library.ToggleKeybind = Options.MenuKeybind
     
