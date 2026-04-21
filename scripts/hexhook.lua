@@ -80,7 +80,7 @@ task.spawn(function()
         AutoShow = false,
         TabPadding = 8,
         MenuFadeTime = 0.2,
-        Font = 'rbxasset://fonts/robotocondensed.ttf'
+        Font = repo .. 'fonts/robotocondensed.ttf'
     })
     
     task.wait(0.2)
