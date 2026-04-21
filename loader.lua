@@ -50,7 +50,7 @@ end
 
 local repo = 'https://raw.githubusercontent.com/triple7distro/hexhook/main/'
 
-if game.CreatorId == 3765739 or game.CreatorId == 34901800 then
+if game.CreatorId == 3765739 or game.CreatorId == 65587627 then
     getgenv().HHLoader = true
     
     loadstring(game:HttpGet(repo .. 'scripts/hexhook.lua'))()
