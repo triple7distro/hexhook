@@ -250,6 +250,10 @@ task.spawn(function()
     
     local InventoryGroup = Tabs['visuals']:AddRightGroupbox('inventory viewer')
     
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Vector2New = Vector2.new
+    local FindFirstChild = game.FindFirstChild
+    
     local InventoryViewer = {
         enabled = false,
         x = 200,
@@ -290,7 +294,7 @@ task.spawn(function()
             Font = Drawing.Fonts.Monospace,
             Outline = true,
             Center = false,
-            Position = pos + Vector2.new(0, (size + 1) * #InventoryViewer.objs),
+            Position = pos + Vector2New(0, (size + 1) * #InventoryViewer.objs),
             Transparency = 1,
             Visible = true,
             Color = Color3.new(1, 1, 1),
@@ -307,25 +311,33 @@ task.spawn(function()
     end
     
     local function InventoryUpdate(name)
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local rplayers = ReplicatedStorage.Players
+        local rplayers = ReplicatedStorage:FindFirstChild("Players")
+        if not rplayers then 
+            warn("ReplicatedStorage.Players not found")
+            return InventoryRefresh() 
+        end
+        
         local updateon
         for _, rplayer in next, rplayers:GetChildren() do
             if name == rplayer.Name then
                 updateon = rplayer
             end
         end
-        if not updateon then return InventoryRefresh() end
-        local invPos = Vector2.new(InventoryViewer.x, InventoryViewer.y)
+        if not updateon then 
+            warn("Player folder not found: " .. tostring(name))
+            return InventoryRefresh() 
+        end
+        
+        local invPos = Vector2New(InventoryViewer.x, InventoryViewer.y)
         InventoryAdd("" .. updateon.Name .. " Inventory", 13, invPos)
         InventoryAdd("[Inventory]", 13, invPos)
-        local inv = updateon:FindFirstChild("Inventory")
+        local inv = FindFirstChild(updateon, "Inventory")
         if inv then
             for _, item in next, inv:GetChildren() do
                 local amount = item:GetAttribute("Amount")
                 local itemText = amount and (item.Name .. " x" .. amount) or item.Name
                 InventoryAdd("    " .. itemText, 13, invPos)
-                local nestedInv = item:FindFirstChild("Inventory")
+                local nestedInv = FindFirstChild(item, "Inventory")
                 if nestedInv then
                     for _, nestedItem in next, nestedInv:GetChildren() do
                         local nestedAmount = nestedItem:GetAttribute("Amount")
@@ -334,6 +346,8 @@ task.spawn(function()
                     end
                 end
             end
+        else
+            warn("Inventory not found for: " .. updateon.Name)
         end
     end
     
@@ -350,6 +364,10 @@ task.spawn(function()
             InventoryViewer.target = Value
         end
     })
+    
+    if #playerList > 0 then
+        InventoryViewer.target = playerList[1]
+    end
     
     InventoryGroup:AddToggle('InventoryViewer', {
         Text = 'inventory viewer',
